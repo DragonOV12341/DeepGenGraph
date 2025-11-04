@@ -51,7 +51,7 @@ int64_t getMaxTensorSize(Operation *top_op) {
   top_op->walk([&](Operation *op) {
     for (auto arg : op->getOperands()) {
       if (isa<RankedTensorType>(arg.getType())) {
-        auto tensor_type = arg.getType().cast<RankedTensorType>();
+        auto tensor_type = dyn_cast<RankedTensorType>(arg.getType()) ;
         int64_t size = 1;
         for (int64_t i = 0; i < tensor_type.getRank(); ++i) {
           size *= tensor_type.getShape()[i];
@@ -61,7 +61,7 @@ int64_t getMaxTensorSize(Operation *top_op) {
     }
     for (auto res : op->getResults()) {
       if (isa<RankedTensorType>(res.getType())) {
-        auto tensor_type = res.getType().cast<RankedTensorType>();
+        auto tensor_type = dyn_cast<RankedTensorType>(res.getType());
         int64_t size = 1;
         for (int64_t i = 0; i < tensor_type.getRank(); ++i) {
           size *= tensor_type.getShape()[i];
@@ -78,7 +78,7 @@ int64_t AccessChanged(ArrayRef<Operation *> previous_ops, ArrayRef<Operation *> 
     int64_t out = 0;
     for (auto arg : op->getOperands()) {
       if (isa<RankedTensorType>(arg.getType())) {
-        auto tensor_type = arg.getType().cast<RankedTensorType>();
+        auto tensor_type = dyn_cast<RankedTensorType>(arg.getType());
         int64_t access = 1;
         for (int64_t i = 0; i < tensor_type.getRank(); ++i) {
           access *= tensor_type.getShape()[i];
@@ -88,7 +88,7 @@ int64_t AccessChanged(ArrayRef<Operation *> previous_ops, ArrayRef<Operation *> 
     }
     for (auto res : op->getResults()) {
       if (isa<RankedTensorType>(res.getType())) {
-        auto tensor_type = res.getType().cast<RankedTensorType>();
+        auto tensor_type = dyn_cast<RankedTensorType>(res.getType());
         int64_t access = 1;
         for (int64_t i = 0; i < tensor_type.getRank(); ++i) {
           access *= tensor_type.getShape()[i];

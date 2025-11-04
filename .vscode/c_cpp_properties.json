@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "~/rocm-llvm-install/include",
+                "${workspaceFolder}/3rd/deepgengraph/build/cp310-cp310-linux_x86_64/include",
+                "${workspaceFolder}/3rd/deepgengraph/include",
+                "${workspaceFolder}/3rd/deepgengraph/3rd/dbg"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

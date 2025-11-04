@@ -31,10 +31,11 @@ generator = "Ninja"
 build_type = "Debug"
 install_components = ["python_module"]
 build_path = "build"
-build_args = ["-j64"]
+build_args = ["-j8"]
 build_tool_args = ["--verbose"]
 install_args = ["--verbose"]
 
 [tool.py-build-cmake.cmake.options]
 CMAKE_CXX_COMPILER = "g++"
 CMAKE_C_COMPILER = "gcc"
+MLIR_DIR = "/home/xushilong/rocm-llvm-install/lib/cmake/mlir"

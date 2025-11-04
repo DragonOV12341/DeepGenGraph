@@ -751,7 +751,7 @@ def ReturnOp : Deepgengraph_Op<"return", [Pure, HasParent<"KernelOp">, /*MemRefs
   let hasVerifier = 1;
 }
 
-def CallOp : Deepgengraph_Op<"call", [CallOpInterface, /*MemRefsNormalizable, */DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+def CallOp : Deepgengraph_Op<"call", [/*CallOpInterface,*/ /*MemRefsNormalizable, */DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "call";
   let description = [{
     call
