@@ -8,10 +8,10 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 project(deepgengraph LANGUAGES CXX C)
-
-find_package(MLIR REQUIRED CONFIG)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 message(STATUS "MLIR_DIR=${MLIR_DIR}")
 message(STATUS "LLVM_DIR=${LLVM_DIR}")
+find_package(MLIR REQUIRED CONFIG)
 
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
@@ -26,6 +26,7 @@ set(LLVM_MAIN_SRC_DIR "${LLVM_BUILD_MAIN_SRC_DIR}")
 # set(NO_RTTI "-fno-rtti")
 # add_definitions(${NO_RTTI})
 add_definitions("-fPIC")
+add_compile_options(-w)
 
 # add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd/triton)
 
@@ -102,4 +103,7 @@ target_link_libraries(deepgengraph_ffi PRIVATE
   DeepgengraphIR
   DeepgengraphTritonIR
 )
+
+add_subdirectory(test)
+
 install(TARGETS deepgengraph_ffi LIBRARY DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME} COMPONENT python_module)

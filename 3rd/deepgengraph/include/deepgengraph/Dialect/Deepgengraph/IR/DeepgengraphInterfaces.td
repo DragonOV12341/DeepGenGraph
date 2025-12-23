@@ -167,4 +167,13 @@ def BroadcastableBinaryOpInterface: OpInterface<"BroadcastableBinaryOpInterface"
   ];
 }
 
+def ElementwiseUinaryOpInterface: OpInterface<"ElementwiseUinaryOpInterface"> {
+  let description = [{
+    unary op which can expressed with linalg.elementwiseOp 
+  }];
+
+  let methods = [
+  ];
+}
+
 #endif // DEEPGENGRAPH_INTERFACES

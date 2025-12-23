@@ -79,7 +79,7 @@ class Deepgengraph_BinaryElementWiseOp<string mnemonic, list<Trait> traits = []>
 }
 
 class Deepgengraph_UnaryElementWiseOp<string mnemonic, list<Trait> traits = []> :
-  Deepgengraph_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType, TotalAccessedElementsInterface])> {
+  Deepgengraph_Op<mnemonic, !listconcat(traits, [Pure, SameOperandsAndResultType, ElementwiseUinaryOpInterface, TotalAccessedElementsInterface])> {
 
   let arguments = (ins AS_AnyTensor:$operand);
 
@@ -88,7 +88,7 @@ class Deepgengraph_UnaryElementWiseOp<string mnemonic, list<Trait> traits = []> 
   let assemblyFormat = "$operand attr-dict `:` functional-type(operands, results)";
 }
 
-def AddOp: Deepgengraph_BinaryElementWiseOp<"add", [Commutative]> {
+def AddOp: Deepgengraph_BinaryElementWiseOp<"add", [Commutative]> {  // Commutative : 符合交换律
   let summary = "add";
 
   let description = [{
@@ -220,7 +220,7 @@ def SplitOp: Deepgengraph_Op<"split", [Pure]> {
 
 }
 
-def DotOp: Deepgengraph_Op<"dot", [Pure, SameOperandsAndResultElementType, InferTypeOpAdaptor, TotalAccessedElementsInterface]> {
+def DotOp: Deepgengraph_Op<"dot", [Pure, /*SameOperandsAndResultElementType,*/ InferTypeOpAdaptor, TotalAccessedElementsInterface]> {
   // TODO: need interface for input/output element_type
   let summary = "deepgengraph dot";
   let description = [{
@@ -361,6 +361,37 @@ def ReduceOp: Deepgengraph_Op<"reduce", [Pure, SameOperandsAndResultElementType,
 
   // let hasVerifier = 1;
 }
+
+// def MaxOp: Deepgengraph_Op<"max", [Pure, SameOperandsAndResultElementType, InferTypeOpAdaptor]> {
+//   let summary = "deepgengraph reduce";
+//   let description = [{
+//     reduce
+//   }];
+
+//   let arguments = (ins
+//     AS_AnyTensor:$operand, 
+//     I64Attr:$dim,
+//     Deepgengraph_ReduceTypeAttr:$reduce_type,
+//     BoolAttr:$keep_dim
+//   );
+
+//   let results = (outs AS_AnyTensor:$result);
+
+//   let builders = [
+//     OpBuilder<(ins "Value":$operand, "IntegerAttr":$reduce_dimension, "::mlir::deepgengraph::ReduceTypeAttr":$reduce_type, "BoolAttr":$keep_dim), [{
+//       build($_builder, $_state, operand, {}, reduce_dimension, reduce_type, keep_dim);
+//     }]>,
+//     OpBuilder<(ins "Value":$operand, "int64_t":$reduce_dimension, "::mlir::deepgengraph::ReduceType":$reduce_type, "bool":$keep_dim), [{
+//       auto dim = $_builder.getI64IntegerAttr(reduce_dimension);
+//       auto reduce_ty = ReduceTypeAttr::get($_builder.getContext(), reduce_type);
+//       auto keep_dim_attr = $_builder.getBoolAttr(keep_dim);
+//       build($_builder, $_state, operand, {}, dim, reduce_ty, keep_dim_attr);
+//     }]>
+//   ];
+
+//   let assemblyFormat =  "`(` $operand ( `,` `init` `=` $init^ )? `)` `,` `dim` `=` $reduce_dimension `,` `op` `=` $reduce_type attr-dict `,` `keep_dim` `=` $keep_dim `:` functional-type(operands, results)";
+//   // let hasVerifier = 1;
+// }
 
 def TanhOp: Deepgengraph_UnaryElementWiseOp<"tanh", []> {
   let summary = "tanh";

@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C/C++ Debug (gdb Attach)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/home/xushilong/anaconda3/envs/py310/bin/python",
+            "args" : ["/home/xushilong/DeepGenGraph/run_kernel.py"],
+            "MIMode": "gdb",
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+        },
+        {
+            "name": "C/C++ Debug (gdb Launch)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/3rd/deepgengraph/build/test/MyTest",
+            "args": ["${workspaceFolder}/3rd/deepgengraph/test/test_input.mlir"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        
+        {
+            "name": "Python : run_e2e.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_e2e.py",
+            "console": "integratedTerminal",
+            "args": [
+            ],
+            "python": "/home/xushilong/anaconda3/envs/py310/bin/python"
+        }
+    ]
+}

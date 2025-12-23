@@ -59,8 +59,9 @@ public:
             // 如果 map 尚未初始化，则根据启发式设置 unit_num 和 size_per_unit
             if (map.unit_num <= 0) {
               // 启发式：如果此维度大小 > 128，则将其切分成大小为128的块
-              if (shape[i] > 128) {
-                int size_per_unit = 128;
+              const int DEFAULT_SIZE = 32;  // 128
+              if (shape[i] > DEFAULT_SIZE) {
+                int size_per_unit = DEFAULT_SIZE;
                 assert(shape[i] % size_per_unit == 0);   // 健全性检查：维度长度必须能被128整除
                 map.unit_num = shape[i] / size_per_unit; // unit_num 为将维度按128划分后的块数
                 map.size_per_unit = size_per_unit;       // 每个并行单元的大小设为128

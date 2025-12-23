@@ -2,7 +2,7 @@ import os
 import safetensors
 import safetensors.torch
 import json
-import deepgengraph_exp._csrc as native_ops
+# import deepgengraph_exp._csrc as native_ops
 
 
 import math
@@ -97,22 +97,179 @@ def init_cos_sin_cache(theta, dim, max_position):
   return concat
 
 
+def rms_norm(out: torch.Tensor, x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    """
+    实现 RMS Normalization。
+    
+    参数:
+        out (torch.Tensor): 用于存储结果的输出张量 (通常是原地操作，但在 Python 中返回新张量更安全)。
+        x (torch.Tensor): 输入张量。
+        weight (torch.Tensor): 学习到的缩放参数 (与特征维度匹配)。
+        eps (float): 防止除零的小常数。
+        
+    返回:
+        torch.Tensor: RMS 归一化后的结果。
+    """
+    # 计算平方和的均值 (mean square)
+    # 保持维度，以便进行广播除法
+    norm_x = x.norm(p=2, dim=-1, keepdim=True)
+    rms_x = norm_x * x.shape[-1]**(-0.5)
+    
+    # 归一化
+    # out = x / (rms_x + eps) * weight  # 原始 Llama 实现中，rms_x 是 rms(x)，这里用 x.norm(p=2)/sqrt(dim)
+    
+    # 通常的 RMSNorm 实现
+    # 计算 (x^2) 沿着最后一个维度求均值，然后开方
+    rms = torch.sqrt(torch.mean(x.pow(2), dim=-1, keepdim=True) + eps)
+    
+    # 归一化并应用 weight
+    out = (x / rms) * weight
+    
+    return out
+
+# 示例:
+# B=1, S=5, D=4
+# x_example = torch.randn(1, 5, 4)
+# weight_example = torch.ones(4) # weight 应该与最后一个维度匹配
+# out_example = torch.empty_like(x_example)
+# result_rms = rms_norm(out_example, x_example, weight_example)
+# print("RMSNorm 结果:", result_rms.shape)
+
+def silu_and_mul(out: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """
+    实现 SiLU (Swish) 激活函数与乘法操作 (用于 SwiGLU/Gated-SiLU 结构)。
+    假设 x 的最后一个维度是结果 out (dim) 的两倍，即 x 包含 A 和 B 两部分，
+    其中 A = x[..., :dim], B = x[..., dim:]
+    操作: out = SiLU(A) * B
+    
+    参数:
+        out (torch.Tensor): 用于存储结果的输出张量。
+        x (torch.Tensor): 输入张量，其最后一个维度通常是 (dim * 2)。
+        
+    返回:
+        torch.Tensor: SiLU 激活后的结果与另一半输入相乘的结果。
+    """
+    dim = out.shape[-1]
+    
+    # 假设 x 的维度是 [..., 2*dim]
+    # 将 x 沿最后一个维度分成两半
+    A, B = x.split(dim, dim=-1)
+    
+    # 应用 SiLU 激活函数
+    silu_A = torch.nn.functional.silu(A)
+    
+    # 将 SiLU(A) 与 B 相乘
+    out = silu_A * B
+    
+    return out
+
+# 示例:
+# num_token=5, dim=4
+# x_example = torch.randn(5, 8) # 8 = 2 * 4
+# out_example = torch.empty(5, 4)
+# result_silu_mul = silu_and_mul(out_example, x_example)
+# print("SiLU_and_Mul 结果:", result_silu_mul.shape)
+
+import torch
+import torch
+
+import torch
+
+def rotary_embedding_online(
+    pos: torch.Tensor, 
+    q: torch.Tensor, 
+    k: torch.Tensor, 
+    head_dim: int, 
+    rope_theta: float = 10000.0
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    实现在线 RoPE (Rotary Positional Embedding) 旋转，修正了维度不匹配的错误。
+    
+    假设 q 和 k 形状为 [N, D_total]，其中 D_total 是 q/k 的总维度 (例如 4096)。
+    head_dim (例如 128) 是旋转要应用的维度。
+    """
+    
+    # 获取展平后的序列/批次长度 N 和总维度 D_total
+    N, D_total = q.shape
+    
+    # 计算头数 (假设 D_total 可以被 head_dim 整除)
+    num_heads = D_total // head_dim
+    
+    # 1. 重塑 Q 和 K 到 [N, Num_Heads, Head_Dim]
+    # 🚨 修正点 1: 重塑张量以隔离 head_dim
+    q_reshaped = q.view(N, num_heads, head_dim)
+    k_reshaped = k.view(N, num_heads, head_dim)
+    
+    # 2. 预计算频率的倒数 (基于 head_dim=128)
+    # inv_freq 形状: [head_dim // 2] = [64]
+    inv_freq = 1.0 / (rope_theta ** (torch.arange(0, head_dim, 2, dtype=torch.float32) / head_dim)).to(q.device)
+    
+    # 3. 计算位置频率
+    # pos 形状: [N] (需要匹配 q/k 的第一个维度)
+    # freqs 形状: [N, head_dim // 2]
+    freqs = torch.outer(pos.float(), inv_freq) 
+    
+    # 4. 得到 cos 和 sin 并准备广播
+    # cos/sin 形状: [N, 1, head_dim // 2]
+    cos = torch.cos(freqs).unsqueeze(1) 
+    sin = torch.sin(freqs).unsqueeze(1)
+
+    # 5. 辅助函数: 旋转一半的维度
+    # 输入 x: [N, Num_Heads, Head_Dim]
+    def rotate_half(x: torch.Tensor) -> torch.Tensor:
+        x_half = x.shape[-1] // 2
+        x0 = x[..., :x_half]
+        x1 = x[..., x_half:]
+        return torch.cat((-x1, x0), dim=-1) # [N, Num_Heads, Head_Dim]
+
+    # 6. 准备用于广播的 cos/sin 嵌入
+    # [N, 1, head_dim // 2] -> [N, 1, head_dim]
+    cos_emb = cos.repeat_interleave(2, dim=-1)
+    sin_emb = sin.repeat_interleave(2, dim=-1)
+    
+    # 7. 应用旋转
+    # q_reshaped: [N, Num_Heads, Head_Dim]
+    # cos_emb: [N, 1, Head_Dim] -> 广播到 [N, Num_Heads, Head_Dim]
+    q_rotated_reshaped = (q_reshaped * cos_emb) + (rotate_half(q_reshaped) * sin_emb)
+    k_rotated_reshaped = (k_reshaped * cos_emb) + (rotate_half(k_reshaped) * sin_emb)
+    
+    # 8. 展平回 [N, D_total] 
+    q_rotated = q_rotated_reshaped.view(N, D_total)
+    k_rotated = k_rotated_reshaped.view(N, D_total)
+    
+    return q_rotated, k_rotated
+# 示例
+# seq_len=5, head_dim=4
+# pos_example = torch.arange(5) # [0, 1, 2, 3, 4]
+# q_example = torch.randn(5, 4)
+# k_example = torch.randn(5, 4)
+
+# q_result, k_result = rotary_embedding_online(
+#     pos=pos_example, 
+#     q=q_example, 
+#     k=k_example, 
+#     head_dim=4
+# )
+
+# print(f"输入 Q 形状: {q_example.shape}")
+# print(f"输出 Q 形状: {q_result.shape}")
+
 def rotary_embedding_online_cuda(pos, q, k, head_dim, rope_theta):
   assert q.dim() == 3 and q.shape[0] == 1
   assert k.dim() == 3 and k.shape[0] == 1
-  native_ops.rotary_embedding_online(pos, q.view(q.shape[1], q.shape[2]), k.view(k.shape[1], k.shape[2]), head_dim, rope_theta)
+  return rotary_embedding_online(pos, q.view(q.shape[1], q.shape[2]), k.view(k.shape[1], k.shape[2]), head_dim, rope_theta)
 
 def silu_and_mul_cuda(x):
   assert x.dim() == 3 and x.shape[0] == 1
   num_token = x.shape[1]
   dim = x.shape[2] // 2
   out = torch.empty(x.shape[0], num_token, dim, dtype=x.dtype, device=x.device)
-  native_ops.silu_and_mul(out.view(num_token, dim), x.view(num_token, x.shape[2]))
+  silu_and_mul(out.view(num_token, dim), x.view(num_token, x.shape[2]))
   return out
 
 def rms_norm_cuda(x, weight, eps):
   out = torch.empty_like(x)
-  native_ops.rms_norm(out, x, weight, eps)
+  rms_norm(out, x, weight, eps)
   return out
 
 

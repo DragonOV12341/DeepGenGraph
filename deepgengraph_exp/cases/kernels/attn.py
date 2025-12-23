@@ -34,9 +34,10 @@ class Attn(nn.Module):
     return out.view(batch_size, q_len, self.head_num, self.head_dim)
     
   def prepare(self, batch_size=1, q_len=4096, kv_len=4096, dtype=torch.float16, device=torch.cuda.current_device()):
-    q = torch.randn(batch_size, q_len, self.head_num, self.head_dim, dtype=dtype, device=device)
-    k = torch.randn(batch_size, kv_len, self.head_num, self.head_dim, dtype=dtype, device=device)
-    v = torch.randn(batch_size, kv_len, self.head_num, self.head_dim, dtype=dtype, device=device)
+    print("[D] ----- Attn prepare",flush=True)
+    q = torch.rand(batch_size, q_len, self.head_num, self.head_dim, dtype=dtype, device=device)
+    k = torch.rand(batch_size, kv_len, self.head_num, self.head_dim, dtype=dtype, device=device)
+    v = torch.rand(batch_size, kv_len, self.head_num, self.head_dim, dtype=dtype, device=device)
 
     ret = {
       'input': {

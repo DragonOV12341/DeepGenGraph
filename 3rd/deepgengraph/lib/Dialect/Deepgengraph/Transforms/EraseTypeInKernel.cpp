@@ -1,4 +1,7 @@
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -6,6 +9,7 @@
 #include "deepgengraph/Dialect/Deepgengraph/Transforms/Passes.h"
 
 #include "dbg.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace mlir::deepgengraph {
 
@@ -197,8 +201,13 @@ public:
               new_op->getResult(i).setType(new_types[i]);
             }
           }
-        } else if (!isa<ReturnOp>(new_op)) {
+        } 
+        else if (isa<MaskYieldOp, BlockYieldOp>(new_op)) {
+          ;
+        }
+        else if (!isa<ReturnOp>(new_op)) {
           new_op->dump();
+          llvm::outs() << "---- unsupportedOpName : "<< new_op->getName() << "\n";llvm::outs().flush();
           llvm_unreachable("not supported");
         }
         for (auto [original_res, new_res] : llvm::zip(op->getResults(), new_op->getResults())) {

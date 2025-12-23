@@ -26,12 +26,12 @@ def gflops_and_mib(seqlen, f, *args):
 
 
 
-# @click.command()
-# @click.option('--model', '-m', default='attn', help='Model name')
-# @click.option('--system', '-s', default='torch', help='System name')
-# @click.option('--seqlen', default=4096, help='seqlen')
-# @click.option('--show_result', is_flag=True, help='show result')
-# @click.option('--check/--no-check', default=True, help='check result with torch')
+@click.command()
+@click.option('--model', '-m', default='attn', help='Model name')
+@click.option('--system', '-s', default='torch', help='System name')
+@click.option('--seqlen', default=4096, help='seqlen')
+@click.option('--show_result', is_flag=True, help='show result')
+@click.option('--check/--no-check', default=True, help='check result with torch')
 def main(model, system, seqlen, show_result, check, extra_args = []):
   print(f"{model=} {system=} {seqlen=}")
   assert model in KERNEL_ZOO, f"model {model} not found in KERNEL_ZOO {KERNEL_ZOO.keys()}"
@@ -76,6 +76,17 @@ def main(model, system, seqlen, show_result, check, extra_args = []):
     output_names=output_names,
     system=system,
   )
+  
+  def test_time(f) :
+    st = torch.cuda.Event(enable_timing=True)
+    et = torch.cuda.Event(enable_timing=True)
+    st.record()
+    f()
+    et.record()
+    torch.cuda.synchronize()
+    return st.elapsed_time(et)
+    
+  
   if f is not None:
     gflops, mib = gflops_and_mib(seqlen, f, *inputs)
     print(f"{gflops=}", flush=True)
@@ -83,6 +94,13 @@ def main(model, system, seqlen, show_result, check, extra_args = []):
 
     if check:
       print(f"checking {system}...")
+      t_ours = []
+      t_base = []
+      for i in range(7):
+        t_base.append(test_time(lambda  : model(*inputs))) 
+        t_ours.append(test_time(lambda  : f(*inputs)))
+      acc = np.median(t_base) / np.median(t_ours)
+      print(f"[D] --- speedup = {acc}",flush=True)
       outs_ref = model(*inputs)
       outs = f(*inputs)
       torch.cuda.synchronize()

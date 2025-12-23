@@ -31,13 +31,15 @@ BUILD_TYPE=Debug
 if [ -n "$1" ]; then
   rm -rf ${BUILD}
   mkdir ${BUILD} && cd ${BUILD}
-  cmake .. -GNinja \
-    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+  cmake ..  \
+    -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+    -DCMAKE_C_COMPILER=/usr/bin/gcc \
+    -DCMAKE_BUILD_TYPE=Debug \
     -DLLVM_ENABLE_ASSERTIONS=ON \
     -DSTABLEHLO_ENABLE_BINDINGS_PYTHON=OFF \
     -DTRITON_BUILD_PYTHON_MODULE=OFF \
     -DTRITON_CODEGEN_BACKENDS="nvidia;amd" \
-    -DMLIR_DIR=${MLIR_DIR}
+    -DMLIR_DIR=/home/xushilong/rocm-llvm-install/lib/cmake/mlir 
 else
   cd ${BUILD}
 fi

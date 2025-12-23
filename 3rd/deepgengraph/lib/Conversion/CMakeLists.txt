@@ -1,1 +1,2 @@
 add_subdirectory(DeepgengraphToDeepgengraphTriton)
+add_subdirectory(DeepgengraphToLinalgOnTensor)

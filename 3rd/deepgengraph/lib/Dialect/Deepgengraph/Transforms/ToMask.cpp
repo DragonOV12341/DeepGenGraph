@@ -56,19 +56,32 @@ public:
 
     auto cmp_op = rewriter.create<::mlir::arith::CmpIOp>(op.getLoc(), ::mlir::arith::CmpIPredicate::ule, cmp_lhs,
                                                          entry->getArgument(1));
-    auto if_op = rewriter.create<::mlir::scf::IfOp>(op.getLoc(), val.getType(), cmp_op.getResult(), true);
-    Block *then_block = &if_op.getThenRegion().front();
-    Block *else_block = &if_op.getElseRegion().front();
-    rewriter.setInsertionPointToStart(then_block);
-    auto val_constant_op = rewriter.create<::mlir::arith::ConstantOp>(op.getLoc(), val);
-    rewriter.create<::mlir::scf::YieldOp>(op.getLoc(), val_constant_op.getResult());
-    rewriter.setInsertionPointToStart(else_block);
-    auto zero_constant_op =
-        rewriter.create<::mlir::arith::ConstantOp>(op.getLoc(), rewriter.getZeroAttr(val.getType()));
-    rewriter.create<::mlir::scf::YieldOp>(op.getLoc(), zero_constant_op.getResult());
+    
 
-    rewriter.setInsertionPointAfter(if_op);
-    rewriter.create<::mlir::deepgengraph::MaskYieldOp>(op.getLoc(), if_op->getResults());
+    // 9. 选择值 (Select)
+    // 使用 arith.select 代替 scf.if，更高效且代码更少
+    auto val_constant_op = rewriter.create<::mlir::arith::ConstantOp>(
+      op.getLoc(), val);
+    auto zero_constant_op = rewriter.create<::mlir::arith::ConstantOp>(
+      op.getLoc(), rewriter.getZeroAttr(val.getType()));
+    Value selelctOp = rewriter.create<arith::SelectOp>(op->getLoc(), cmp_op, val_constant_op, zero_constant_op);
+    
+    rewriter.create<::mlir::deepgengraph::MaskYieldOp>(op.getLoc(), selelctOp);
+
+    // auto if_op = rewriter.create<::mlir::scf::IfOp>(op.getLoc(), val.getType(), cmp_op.getResult(), true);
+    // Block *then_block = &if_op.getThenRegion().front();
+    // Block *else_block = &if_op.getElseRegion().front();
+    // rewriter.setInsertionPointToStart(then_block);
+    // auto val_constant_op = rewriter.create<::mlir::arith::ConstantOp>(op.getLoc(), val);
+    // rewriter.create<::mlir::scf::YieldOp>(op.getLoc(), val_constant_op.getResult());
+    // rewriter.setInsertionPointToStart(else_block);
+    // auto zero_constant_op =
+    //     rewriter.create<::mlir::arith::ConstantOp>(op.getLoc(), rewriter.getZeroAttr(val.getType()));
+    // rewriter.create<::mlir::scf::YieldOp>(op.getLoc(), zero_constant_op.getResult());
+
+    // rewriter.setInsertionPointAfter(if_op);
+    // rewriter.create<::mlir::deepgengraph::MaskYieldOp>(op.getLoc(), if_op->getResults());
+    
 
     rewriter.replaceOp(op, mask_op.getResult());
     return mlir::success();

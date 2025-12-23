@@ -13,6 +13,7 @@
 #include "deepgengraph/Dialect/DeepgengraphTriton/IR/DeepgengraphTritonDialect.h"
 #include "deepgengraph/Dialect/DeepgengraphTriton/Transforms/Passes.h"
 #include "deepgengraph/Conversion/DeepgengraphToDeepgengraphTriton/Passes.h"
+#include "deepgengraph/Conversion/DeepgengraphToLinalgOnTensor/Passes.h"
 #include "deepgengraph/Translate/translate.h"
 
 #define ADD_PASS_WRAPPER_0(name, builder) m.def(name, [](mlir::OpPassManager &pm) { pm.addPass(builder()); })
@@ -73,6 +74,7 @@ void init_deepgengraph_passes(py::module &m) {
   ADD_PASS_WRAPPER_0("add_deepgengraph_recover_type_in_kernel", createRecoverTypeInKernelPass);
   ADD_PASS_WRAPPER_0("add_deepgengraphtriton_squeeze_block", triton::createSqueezeBlockPass);
   ADD_PASS_WRAPPER_0("add_deepgengraph_convert_deepgengraph_to_deepgengraphtriton", createConvertDeepgengraphToDeepgengraphTritonPass);
+  ADD_PASS_WRAPPER_0("add_deepgengraph_convert_deepgengraph_to_linalgontensor", createConvertDeepgengraphToLinalgOnTensorPass);
 
   // translate
   m.def("translate_kernel_to_py", [](KernelOp kernel_op, bool import, bool benchmark) -> std::string {

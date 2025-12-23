@@ -38,12 +38,14 @@ def perf(label, f, args, kwargs={}, gflops=None, mem_gb=None, run=10, warmup=4, 
     profile_start()
   ms = []
   for _ in range(run):
-    torch.cuda.synchronize()
-    tik = time.time()
+    tik = torch.cuda.Event(enable_timing=True)
+    tok = torch.cuda.Event(enable_timing=True)
+    tik.record()
     o = f(*args, **kwargs)
+    tok.record()
     torch.cuda.synchronize()
-    tok = time.time()
-    ms.append((tok - tik) * 1000.0)
+    eps = tik.elapsed_time(tok)
+    ms.append(eps)
   if profile:
     profile_stop()
 

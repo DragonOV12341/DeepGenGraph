@@ -89,7 +89,7 @@ class Llama(nn.Module):
     self.rms_norm = RmsNorm(dim=hf_config.hidden_size, eps=hf_config.rms_norm_eps, dtype=hf_config.torch_dtype)
     self.hf_config = hf_config
 
-    self.load_param(hf_config)
+    # self.load_param(hf_config)
   
   def load_param(self, hf_config):
     weight_dict = collect_weight_dict(hf_config)

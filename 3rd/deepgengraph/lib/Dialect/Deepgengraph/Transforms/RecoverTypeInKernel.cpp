@@ -1,3 +1,6 @@
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -6,6 +9,9 @@
 #include "deepgengraph/Dialect/Deepgengraph/Transforms/Passes.h"
 
 #include "dbg.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <vector>
 
 namespace mlir::deepgengraph {
 
@@ -265,20 +271,83 @@ public:
         auto rhs = operands[1];
         // FIXME: f32 is enough?
         Type acc_type = builder.getF32Type();
-        auto new_dot_op = builder.create<PreciseDotOp>(dot_op.getLoc(), lhs, rhs, acc_type);
+
+        mlir::Value newLhs ;
+        mlir::Value newRhs ;
+        std::vector<int64_t> lhsShape;
+        std::vector<int64_t> rhsShape;
+        // llvm::outs() << "[D]---- recover 000 " << lhs << ", " << rhs << "\n"; llvm::outs().flush();
+        if(mlir::cast<RankedTensorType>(lhs.getType()).getElementType() != acc_type){
+          auto lhsTensorTy = mlir::cast<RankedTensorType>(lhs.getType());
+          // llvm::outs() << "[D]---- recover 111\n"; llvm::outs().flush();
+          lhsShape = lhsTensorTy.getShape();
+          auto lhsNewTensorType = mlir::RankedTensorType::get(lhsShape, acc_type);
+          auto lhsConvOp = builder.create<deepgengraph::ConvertOp>(dot_op->getLoc(), lhsNewTensorType,lhs, acc_type);
+          newLhs = lhsConvOp.getResult();
+          // llvm::outs() << "[D]---- recover 222 :" << newLhs << "\n"; llvm::outs().flush();
+
+        }
+        else{
+          newLhs = lhs;
+        }
+        if(mlir::cast<RankedTensorType>(rhs.getType()).getElementType() != acc_type){
+          auto rhsTensorTy = mlir::cast<RankedTensorType>(rhs.getType());
+          rhsShape = rhsTensorTy.getShape();
+          auto rhsNewTensorType = mlir::RankedTensorType::get(rhsShape, acc_type);
+          auto rhsConvOp = builder.create<deepgengraph::ConvertOp>(dot_op->getLoc(), rhsNewTensorType, rhs, acc_type);
+          newRhs = rhsConvOp.getResult();
+          // llvm::outs() << "[D]---- recover 333 "<< newRhs <<"\n"; llvm::outs().flush();
+        }
+        else{
+          newRhs = rhs;
+        }
+        // llvm::outs() << "[D]---- recover 444\n"; llvm::outs().flush();
+        auto new_dot_op = builder.create<PreciseDotOp>(dot_op.getLoc(), newLhs, newRhs, acc_type);
+        // llvm::outs() << "[D]---- recover 7  "<< new_dot_op <<"\n"; llvm::outs().flush();
         dot_op.getResult().replaceAllUsesWith(new_dot_op.getResult());
-        dot_op->erase();
+        // dot_op->erase();
+        // llvm::outs() << "---after Dotop : \n" << new_dot_op << "\n";llvm::outs().flush();
       } else if (auto mask_op = dyn_cast<MaskOp>(op)) {
+        for(auto user : mask_op.getResult().getUsers()){
+          for(auto ty : user->getResultTypes()){
+            if(mlir::isa<TensorType>(ty)){
+              // llvm::outs() << "----user op reuslt tensor ty : " << ty << "\n";
+            }
+            else{
+              // llvm::outs() << "----user op reuslt float ty : " << ty << "\n";
+            }
+          }
+        }
+        llvm::outs().flush();
+
         auto elem_type = mask_op.getElementType();
+        // llvm::outs() << "----0000000000 \n";llvm::outs().flush();
+
         assert(isa<FloatType>(elem_type));
+        // llvm::outs() << "----11111111 \n";llvm::outs().flush();
         auto default_type = builder.getF32Type();
+        bool isTypeDiff = false;
         if (elem_type != default_type) {
+          isTypeDiff = true;
           mask_op.setElementType(default_type);
         }
-        infer_type(&*mask_op);
+        // infer_type(&*mask_op);
+        // llvm::outs() << "----after infer : " << mask_op << "\n"; llvm::outs().flush();
 
         auto mask_block = &mask_op.getRegion().front();
-        rewrite(mask_block, builder);
+
+        auto newRetType = mask_op.getElementType();
+        // llvm::outs() << "----22222222 \n";llvm::outs().flush();
+        auto selectOp = mask_op.getOps<arith::SelectOp>().begin();
+        (*selectOp)->getOperand(1).setType(newRetType);
+        (*selectOp)->getOperand(2).setType(newRetType);
+        (*selectOp).getResult().setType(newRetType);
+        auto maskRetType = mlir::cast<TensorType>(mask_op.getResult().getType());
+        std::vector<int64_t> maskRetShape = maskRetType.getShape();
+        auto maskNewRetType = mlir::RankedTensorType::get(maskRetShape, newRetType);
+        mask_op->getResult(0).setType(maskNewRetType);
+        // llvm::outs() << "---- after rewrite: " << mask_op << "\n"; llvm::outs().flush();
+        // rewrite(mask_block, builder);
       } else if (auto block_for_op = dyn_cast<BlockForOp>(op)) {
         // FIXME: redundant code, need an block_for interface
         for (int i = 0; i < block_for_op.getNumBlockArgs(); ++i) {
@@ -323,13 +392,15 @@ public:
           update_elem_type(arg, ret);
         }
       } else if (isa<InferTypeOpInterface>(op)) {
-        SmallVector<Value> operands(op->getOperands());
-        builder.setInsertionPoint(op);
-        auto new_operands = convertLeastElementType(operands, builder);
-        for (size_t i = 0; i < new_operands.size(); ++i) {
-          op->setOperand(i, new_operands[i]);
+        if(!mlir::isa<MaskOp>(op->getParentOp())){
+          SmallVector<Value> operands(op->getOperands());
+          builder.setInsertionPoint(op);
+          auto new_operands = convertLeastElementType(operands, builder);
+          for (size_t i = 0; i < new_operands.size(); ++i) {
+            op->setOperand(i, new_operands[i]);
+          }
+          infer_type(op);
         }
-        infer_type(op);
       } else if (auto yield_op = dyn_cast<ParallelYieldOp>(op)) {
         builder.setInsertionPoint(yield_op);
         auto parallel_for_op = yield_op->getParentOfType<ParallelForOp>();

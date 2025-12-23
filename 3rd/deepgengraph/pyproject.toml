@@ -36,6 +36,6 @@ build_tool_args = ["--verbose"]
 install_args = ["--verbose"]
 
 [tool.py-build-cmake.cmake.options]
-CMAKE_CXX_COMPILER = "g++"
-CMAKE_C_COMPILER = "gcc"
+CMAKE_CXX_COMPILER = "/usr/bin/g++"
+CMAKE_C_COMPILER = "/usr/bin/gcc"
 MLIR_DIR = "/home/xushilong/rocm-llvm-install/lib/cmake/mlir"

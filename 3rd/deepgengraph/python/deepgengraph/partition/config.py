@@ -108,7 +108,7 @@ class PartitionConfig:
       except Exception as e:
         print(f"optimize {kernel.kernel_name} failed", flush=True)
         # kernel.kernel.dump()
-        # print(e)
+        print(e)
         failed_kernels.add(i)
     
     if len(failed_kernels) > 0:

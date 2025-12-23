@@ -121,6 +121,10 @@ def loss(out, ref):
 def compare(outs, refs, names):
   if not isinstance(outs, list) and not isinstance(outs, tuple):
     assert len(names) == 1, f"{names=}, {type(outs)=}"
+    isCorrect = False
+    if torch.allclose(outs,refs,rtol=1e-2,atol=1e-2) :
+      isCorrect = True
+    print(f"[D] ---- isCorrect : {isCorrect}", flush=True)
     print(f"{names[0]} loss: {loss(outs, refs)}", flush=True)
   else:
     assert len(outs) == len(refs), f"{len(outs)=} {len(refs)=}"
